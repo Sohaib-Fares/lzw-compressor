@@ -2,28 +2,37 @@ package lzw
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 )
 
-const (
-	ENCODING_BITS       = 12
-	MAX_DICTIONARY_SIZE = 4096
-)
-
-func Compress(input []byte) []byte {
+func initialization(ENCODING_BITS int) (int, map[string]int) {
 
 	dictionary := make(map[string]int)
 
-	for i := range 256 {
+	return 1 << ENCODING_BITS, dictionary
+}
+
+func Compress(input []byte, ENCODING_BITS int) ([]byte, error) {
+
+	if len(input) == 0 {
+		return nil, errors.New("empty input, please enter a valid input")
+	}
+
+	if ENCODING_BITS > 16 || ENCODING_BITS < 9 {
+		return nil, errors.New("unsupported encoding, try 9 - 16 bits")
+	}
+
+	MAX_DICTIONARY_SIZE, dictionary := initialization(ENCODING_BITS)
+
+	for i := 0; i < 256; i++ {
 		dictionary[string(byte(i))] = i
 	}
 
 	next_code := 256
-
 	STRING := string(input[0])
 	codes := []int{}
-	// TODO: change int implementation to a more proper type management
-	// TODO: add support for other bit encodings and handle full map edge cases
+
 	for i := 1; i < len(input); i++ {
 		CHAR := string(input[i])
 		combined := STRING + CHAR
@@ -42,31 +51,34 @@ func Compress(input []byte) []byte {
 	}
 	codes = append(codes, dictionary[STRING])
 	fmt.Printf("Codes: %v\n", codes) // just for debugging
-	return PackCodes(codes)
+	return PackCodes(codes, ENCODING_BITS), nil
 
 }
 
-func PackCodes(codes []int) []byte {
+func PackCodes(codes []int, ENCODING_BITS int) []byte {
+
 	var buf bytes.Buffer
+	var bitBuffer uint64
+	var bitCount uint
 
-	for i := 0; i < len(codes); i += 2 {
-		if i+1 < len(codes) {
-			// case we have 2 bytes left
-			code1 := codes[i]
-			code2 := codes[i+1]
+	mask := (1 << ENCODING_BITS) - 1
 
-			buf.WriteByte(byte(code1 >> 4))
-			buf.WriteByte(byte((code1&0x0F)<<4 | (code2>>8)&0x0F))
-			buf.WriteByte(byte(code2 & 0xFF))
+	for _, c := range codes {
+		v := uint64(c & mask)
+		bitBuffer = (bitBuffer << ENCODING_BITS) | v
+		bitCount += uint(ENCODING_BITS)
 
-		} else {
-			// case we're in the last byte
-			code1 := codes[i]
-			buf.WriteByte(byte(code1 >> 4))
-			buf.WriteByte(byte((code1 & 0x0F) << 4))
-
+		for bitCount >= 8 {
+			shift := bitCount - 8
+			b := byte(bitBuffer >> shift)
+			buf.WriteByte(b)
+			bitBuffer &= (1 << shift) - 1
+			bitCount = shift
 		}
 	}
-
+	if bitCount > 0 {
+		b := byte(bitBuffer << (8 - bitCount))
+		buf.WriteByte(b)
+	}
 	return buf.Bytes()
 }
