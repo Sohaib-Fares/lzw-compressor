@@ -138,11 +138,9 @@ lzw-compressor/
 │   ├── bit-operations/
 │   │   ├── bitPacking.go        # Pack codes into bytes
 │   │   ├── bitUnpacking.go      # Unpack bytes into codes
-│   │   └── bitOperations_test.go # Bit operation tests
 │   └── lzw/
 │       ├── compressor.go        # LZW compression algorithm
 │       ├── decompressor.go      # LZW decompression algorithm
-│       └── compressor_test.go   # LZW algorithm tests
 ├── go.mod
 └── README.md
 ```
