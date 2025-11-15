@@ -1,9 +1,8 @@
 package lzw
 
 import (
-	"bytes"
 	"errors"
-	"fmt"
+	bitoperations "github.com/Sohaib-Fares/lzw-compressor/pkg/bit-operations"
 )
 
 func initialization(ENCODING_BITS int) (int, map[string]int) {
@@ -26,15 +25,15 @@ func Compress(input []byte, ENCODING_BITS int) ([]byte, error) {
 	MAX_DICTIONARY_SIZE, dictionary := initialization(ENCODING_BITS)
 
 	for i := 0; i < 256; i++ {
-		dictionary[string(byte(i))] = i
+		dictionary[string([]byte{byte(i)})] = i
 	}
 
 	next_code := 256
-	STRING := string(input[0])
+	STRING := string([]byte{input[0]})
 	codes := []int{}
 
 	for i := 1; i < len(input); i++ {
-		CHAR := string(input[i])
+		CHAR := string([]byte{input[i]})
 		combined := STRING + CHAR
 
 		if _, exist := dictionary[combined]; exist {
@@ -50,35 +49,6 @@ func Compress(input []byte, ENCODING_BITS int) ([]byte, error) {
 		}
 	}
 	codes = append(codes, dictionary[STRING])
-	fmt.Printf("Codes: %v\n", codes) // just for debugging
-	return PackCodes(codes, ENCODING_BITS), nil
+	return bitoperations.PackCodes(codes, ENCODING_BITS), nil
 
-}
-
-func PackCodes(codes []int, ENCODING_BITS int) []byte {
-
-	var buf bytes.Buffer
-	var bitBuffer uint64
-	var bitCount uint
-
-	mask := (1 << ENCODING_BITS) - 1
-
-	for _, c := range codes {
-		v := uint64(c & mask)
-		bitBuffer = (bitBuffer << ENCODING_BITS) | v
-		bitCount += uint(ENCODING_BITS)
-
-		for bitCount >= 8 {
-			shift := bitCount - 8
-			b := byte(bitBuffer >> shift)
-			buf.WriteByte(b)
-			bitBuffer &= (1 << shift) - 1
-			bitCount = shift
-		}
-	}
-	if bitCount > 0 {
-		b := byte(bitBuffer << (8 - bitCount))
-		buf.WriteByte(b)
-	}
-	return buf.Bytes()
 }
